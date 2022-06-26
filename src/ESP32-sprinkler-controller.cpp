@@ -61,8 +61,8 @@ const String valve02state = "SAN320YS02SW01/state";
 // start webserver
 AsyncWebServer server(80);
 ESPDash dashboard(&server);
-Card ValveSchuppen(&dashboard, BUTTON_CARD, "PIN 12 - IN 1");
-Card ValveIN2(&dashboard, BUTTON_CARD, "PIN 12 - IN 1");
+Card ValveSchuppen(&dashboard, BUTTON_CARD, "🌱 Hauptrasen");
+Card ValveIN2(&dashboard, BUTTON_CARD, "🪓 Schuppen");
 Card temperature(&dashboard, TEMPERATURE_CARD, "Temperature", "°C");
 Card humidity(&dashboard, HUMIDITY_CARD, "Humidity", "%");
 Card card2(&dashboard, PROGRESS_CARD, "Progress1", "", 0, 255);
@@ -77,6 +77,12 @@ Card card2(&dashboard, PROGRESS_CARD, "Progress1", "", 0, 255);
 // ------------------------------------------------
 
 int prog = 0;
+
+// Declaring functions before they are called in order to be able to revert to .cpp instead of .ino file format.
+// c.f. https://docs.platformio.org/en/latest/faq/ino-to-cpp.html
+void mqttCallbackReceived(char *topicByte, byte *payloadByte, unsigned int length);
+void mqttconnect();
+void mqttcheckHeartbeat();
 
 void setup()
 {
@@ -120,13 +126,11 @@ void setup()
     if (WiFi.status() != WL_CONNECTED)
         ESP.restart();
 
-
-    // OTA
-
-
-
-  ArduinoOTA
-    .onStart([]() {
+    // Code for OTA, shamelessly copied from https://github.com/espressif/arduino-esp32/blob/master/libraries/ArduinoOTA/examples/BasicOTA/BasicOTA.ino
+    // Warning: No libdep for platformio reqauired. Make sure there's no OTA library in the .pio/libdeps/esp32dev folder!
+    ArduinoOTA
+        .onStart([]()
+                 {
       String type;
       if (ArduinoOTA.getCommand() == U_FLASH)
         type = "sketch";
@@ -134,29 +138,21 @@ void setup()
         type = "filesystem";
 
       // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      Serial.println("Start updating " + type);
-    })
-    .onEnd([]() {
-      Serial.println("\nEnd");
-    })
-    .onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    })
-    .onError([](ota_error_t error) {
+      Serial.println("Start updating " + type); })
+        .onEnd([]()
+               { Serial.println("\nEnd"); })
+        .onProgress([](unsigned int progress, unsigned int total)
+                    { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); })
+        .onError([](ota_error_t error)
+                 {
       Serial.printf("Error[%u]: ", error);
       if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+           else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
       else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
       else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-      else if (error == OTA_END_ERROR) Serial.println("End Failed");
-    });
+      else if (error == OTA_END_ERROR) Serial.println("End Failed"); });
 
-  ArduinoOTA.begin();
-
-
-
-
-
+    ArduinoOTA.begin();
 
     // connect to the mqtt server
     //  Problems with new mosquitto X509 Certs waiting for fix in WiFiClientSecure
@@ -193,7 +189,6 @@ void loop()
     // dashboard.sendUpdates();
     ArduinoOTA.handle();
 
-    
     // reconnect to mqtt server if connection is offline
     if (!mqttClient.connected())
     {
@@ -221,7 +216,7 @@ void loop()
     Serial.println(prog);
 
     ValveSchuppen.attachCallback([&](bool value)
-    {
+                                 {
         Serial.println("[Card1] Button Callback Triggered: "+String((value)?"true":"false"));
         if (value == true) {
             Serial.println("True");
@@ -231,11 +226,10 @@ void loop()
             mqttClient.publish("SAN320YS01SW01/command", "OFF");
         }
         ValveSchuppen.update(value);
-        dashboard.sendUpdates();
-    });
+        dashboard.sendUpdates(); });
 
     ValveIN2.attachCallback([&](bool value)
-    {
+                            {
         Serial.println("[Card2] Button Callback Triggered: "+String((value)?"true":"false"));
         if (value == true) {
             Serial.println("True");
@@ -245,8 +239,7 @@ void loop()
             mqttClient.publish("SAN320YS02SW01/command", "OFF");
         }
         ValveIN2.update(value);
-        dashboard.sendUpdates();
-    });
+        dashboard.sendUpdates(); });
 }
 
 // ------------------------------------------------
