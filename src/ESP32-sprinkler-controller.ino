@@ -52,7 +52,7 @@ String mqttPayload = "";
 unsigned long millisLastUpdateHeartbeat = millis();
 
 // define names for the mqtt topics used for the heartbeat and valves
-const String heartbeat = "SYS000AE01SW01";
+const String heartbeat = "$SYS/broker/uptime";
 const String valve01command = "SAN320YS01SW01/command";
 const String valve01state = "SAN320YS01SW01/state";
 const String valve02command = "SAN320YS02SW01/command";
@@ -120,6 +120,44 @@ void setup()
     if (WiFi.status() != WL_CONNECTED)
         ESP.restart();
 
+
+    // OTA
+
+
+
+  ArduinoOTA
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+
+  ArduinoOTA.begin();
+
+
+
+
+
+
     // connect to the mqtt server
     //  Problems with new mosquitto X509 Certs waiting for fix in WiFiClientSecure
     //  SSL still aktive, but no server verification possible at this time
@@ -153,7 +191,9 @@ void loop()
     //  ArduinoOTA.Handle();
     /* Send Updates to our Dashboard (realtime) */
     // dashboard.sendUpdates();
+    ArduinoOTA.handle();
 
+    
     // reconnect to mqtt server if connection is offline
     if (!mqttClient.connected())
     {
@@ -320,7 +360,7 @@ void mqttcheckHeartbeat()
 {
 
     // was the last incoming mqtt topic an heartbeat from the server
-    if (mqttIncommingTopic == "SYS000AE01SW01")
+    if (mqttIncommingTopic == "$SYS/broker/uptime")
     {
 
         // reset the 15 minute countdown
