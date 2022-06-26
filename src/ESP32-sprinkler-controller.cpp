@@ -341,7 +341,7 @@ void mqttcheckHeartbeat()
 {
 
     // was the last incoming mqtt topic an heartbeat from the server
-    if (mqttIncomingTopic == "$SYS/broker/uptime")
+    if (mqttIncomingTopic == heartbeat)
     {
 
         // reset the 15 minute countdown
