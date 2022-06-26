@@ -12,6 +12,7 @@
 
 // https://github.com/me-no-dev/ESPAsyncWebServer/issues/325#issuecomment-917680259
 #define WS_MAX_QUEUED_MESSAGES 32
+
 // Lib for Dashboard
 #include <Arduino.h>
 #include <WiFi.h>
@@ -24,13 +25,15 @@
 #include "credentialsWifi.h"
 //#include "credentialsMqttServer.h"
 
+
+
 // ------------------------------------------------
 //  ESP32-WROOM-32 - pin definitions
 // ------------------------------------------------
 
 // io-pin                name of the area to sprinkle        terminal in the control cabinet
-#define valve01Pin 27 // Bewässerung Hofeinfahrt           Klemme 06
-#define valve02Pin 12 // Bewässerung Hofeinfahrt           Klemme 06
+#define valve01Pin 27 // Bewässerung Schuppen      
+#define valve02Pin 12 // Bewässerung Hauptrasen
 
 // ------------------------------------------------
 //  definitions
@@ -45,8 +48,8 @@ const int mqttPort = 1883;
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-String mqttIncommingTopic = "";
-String mqttIncommingPayload = "";
+String mqttIncomingTopic = "";
+String mqttIncomingPayload = "";
 String mqttPayload = "";
 
 unsigned long millisLastUpdateHeartbeat = millis();
@@ -59,15 +62,10 @@ const String valve02command = "SAN320YS02SW01/command";
 const String valve02state = "SAN320YS02SW01/state";
 
 // start webserver
-AsyncWebServer server(80);
+AsyncWebServer server(80); 
 ESPDash dashboard(&server);
-Card ValveSchuppen(&dashboard, BUTTON_CARD, "🌱 Hauptrasen");
-Card ValveIN2(&dashboard, BUTTON_CARD, "🪓 Schuppen");
-Card temperature(&dashboard, TEMPERATURE_CARD, "Temperature", "°C");
-Card humidity(&dashboard, HUMIDITY_CARD, "Humidity", "%");
-Card card2(&dashboard, PROGRESS_CARD, "Progress1", "", 0, 255);
-
-// int prog = 20;
+Card ValveSchuppen(&dashboard, BUTTON_CARD, "🪓 Schuppen");
+Card ValveHauptrasen(&dashboard, BUTTON_CARD, "🌱 Hauptrasen");
 
 // ------------------------------------------------
 //  setup
@@ -76,7 +74,7 @@ Card card2(&dashboard, PROGRESS_CARD, "Progress1", "", 0, 255);
 //  wifi, mqtt connection and io-pins
 // ------------------------------------------------
 
-int prog = 0;
+
 
 // Declaring functions before they are called in order to be able to revert to .cpp instead of .ino file format.
 // c.f. https://docs.platformio.org/en/latest/faq/ino-to-cpp.html
@@ -86,7 +84,6 @@ void mqttcheckHeartbeat();
 
 void setup()
 {
-    prog = 4;
     Serial.begin(115200);
     WiFi.mode(WIFI_STA);
 
@@ -201,19 +198,12 @@ void loop()
     if (mqttClient.connected())
         mqttClient.loop(); // listen for trafic - no delays
 
-    temperature.update((int)random(0, 50));
-    humidity.update((int)random(0, 100));
-    card2.update(prog);
+    
     dashboard.sendUpdates();
 
-    //
-    // ACHTUNG
-    //
-    // Delay wieder rausnehmen, nur zu Testzwecken!
-    delay(3000);
-    // for (int prog = 0; prog < 200; prog++);
-    prog = prog + 1;
-    Serial.println(prog);
+    // It is important to limit the update frequency for the dashboard; otherwise espdash will crash. 
+    delay(500);
+    
 
     ValveSchuppen.attachCallback([&](bool value)
                                  {
@@ -228,7 +218,7 @@ void loop()
         ValveSchuppen.update(value);
         dashboard.sendUpdates(); });
 
-    ValveIN2.attachCallback([&](bool value)
+    ValveHauptrasen.attachCallback([&](bool value)
                             {
         Serial.println("[Card2] Button Callback Triggered: "+String((value)?"true":"false"));
         if (value == true) {
@@ -238,7 +228,7 @@ void loop()
             Serial.println("Not true.");
             mqttClient.publish("SAN320YS02SW01/command", "OFF");
         }
-        ValveIN2.update(value);
+        ValveHauptrasen.update(value);
         dashboard.sendUpdates(); });
 }
 
@@ -255,10 +245,8 @@ void loop()
 
 void mqttconnect()
 {
-    // if (mqttClient.connect("esp32_Bewaesserung", mqttUser, mqttPass)) {
     while (!mqttClient.connected())
     {
-        // if (mqttClient.connect("esp32_Bewaesserung")) {
         if (mqttClient.connect("esp", NULL, NULL))
         {
             Serial.println("Connected to MQTT server");
@@ -299,23 +287,23 @@ void mqttconnect()
 void mqttCallbackReceived(char *topicByte, byte *payloadByte, unsigned int length)
 {
 
-    mqttIncommingTopic = String((char *)topicByte);
-    mqttIncommingPayload = "";
+    mqttIncomingTopic = String((char *)topicByte);
+    mqttIncomingPayload = "";
     for (unsigned int i = 0; i < length; i++)
-        mqttIncommingPayload += (char)payloadByte[i];
+        mqttIncomingPayload += (char)payloadByte[i];
 
     mqttcheckHeartbeat();
 
-    if (mqttIncommingTopic == valve01command)
+    if (mqttIncomingTopic == valve01command)
     {
-        if (mqttIncommingPayload == "OFF")
+        if (mqttIncomingPayload == "OFF")
         {
             Serial.println("\n Command: off");
             digitalWrite(valve01Pin, HIGH);
             mqttPayload = "OFF";
             mqttClient.publish(valve01state.c_str(), mqttPayload.c_str());
         }
-        if (mqttIncommingPayload == "ON")
+        if (mqttIncomingPayload == "ON")
         {
             Serial.println("\n Command: on");
             digitalWrite(valve01Pin, LOW);
@@ -323,15 +311,15 @@ void mqttCallbackReceived(char *topicByte, byte *payloadByte, unsigned int lengt
             mqttClient.publish(valve01state.c_str(), mqttPayload.c_str());
         }
     }
-    else if (mqttIncommingTopic == valve02command)
+    else if (mqttIncomingTopic == valve02command)
     {
-        if (mqttIncommingPayload == "OFF")
+        if (mqttIncomingPayload == "OFF")
         {
             digitalWrite(valve02Pin, HIGH);
             mqttPayload = "OFF";
             mqttClient.publish(valve02state.c_str(), mqttPayload.c_str());
         }
-        if (mqttIncommingPayload == "ON")
+        if (mqttIncomingPayload == "ON")
         {
             digitalWrite(valve02Pin, LOW);
             mqttPayload = "ON";
@@ -353,13 +341,13 @@ void mqttcheckHeartbeat()
 {
 
     // was the last incoming mqtt topic an heartbeat from the server
-    if (mqttIncommingTopic == "$SYS/broker/uptime")
+    if (mqttIncomingTopic == "$SYS/broker/uptime")
     {
 
         // reset the 15 minute countdown
         millisLastUpdateHeartbeat = millis();
         // remove the heartbeat from the buffer
-        mqttIncommingTopic = "";
+        mqttIncomingTopic = "";
     }
 
     // restart esp if the the was no heartbeat detected in the last 15 minutes
