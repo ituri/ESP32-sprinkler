@@ -62,7 +62,7 @@ const String valve02command = "SAN320YS02SW01/command";
 const String valve02state = "SAN320YS02SW01/state";
 
 // start webserver
-AsyncWebServer server(80); 
+AsyncWebServer server(80);
 ESPDash dashboard(&server);
 Card ValveSchuppen(&dashboard, BUTTON_CARD, "🪓 Schuppen");
 Card ValveHauptrasen(&dashboard, BUTTON_CARD, "🌱 Hauptrasen");
@@ -126,28 +126,34 @@ void setup()
     // Code for OTA, shamelessly copied from https://github.com/espressif/arduino-esp32/blob/master/libraries/ArduinoOTA/examples/BasicOTA/BasicOTA.ino
     // Warning: No libdep for platformio reqauired. Make sure there's no OTA library in the .pio/libdeps/esp32dev folder!
     ArduinoOTA
-        .onStart([]()
-                 {
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH)
-        type = "sketch";
-      else // U_SPIFFS
-        type = "filesystem";
+    .onStart([]()
+    {
+        String type;
+        if (ArduinoOTA.getCommand() == U_FLASH)
+            type = "sketch";
+        else // U_SPIFFS
+            type = "filesystem";
 
-      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      Serial.println("Start updating " + type); })
-        .onEnd([]()
-               { Serial.println("\nEnd"); })
-        .onProgress([](unsigned int progress, unsigned int total)
-                    { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); })
-        .onError([](ota_error_t error)
-                 {
-      Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-           else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-      else if (error == OTA_END_ERROR) Serial.println("End Failed"); });
+        // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+        Serial.println("Start updating " + type);
+    })
+    .onEnd([]()
+    {
+        Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total)
+    {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error)
+    {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
 
     ArduinoOTA.begin();
 
@@ -198,15 +204,15 @@ void loop()
     if (mqttClient.connected())
         mqttClient.loop(); // listen for trafic - no delays
 
-    
+
     dashboard.sendUpdates();
 
-    // It is important to limit the update frequency for the dashboard; otherwise espdash will crash. 
+    // It is important to limit the update frequency for the dashboard; otherwise espdash will crash.
     delay(500);
-    
+
 
     ValveSchuppen.attachCallback([&](bool value)
-                                 {
+    {
         Serial.println("[Card1] Button Callback Triggered: "+String((value)?"true":"false"));
         if (value == true) {
             Serial.println("True");
@@ -216,10 +222,11 @@ void loop()
             mqttClient.publish("SAN320YS01SW01/command", "OFF");
         }
         ValveSchuppen.update(value);
-        dashboard.sendUpdates(); });
+        dashboard.sendUpdates();
+    });
 
     ValveHauptrasen.attachCallback([&](bool value)
-                            {
+    {
         Serial.println("[Card2] Button Callback Triggered: "+String((value)?"true":"false"));
         if (value == true) {
             Serial.println("True");
@@ -229,7 +236,8 @@ void loop()
             mqttClient.publish("SAN320YS02SW01/command", "OFF");
         }
         ValveHauptrasen.update(value);
-        dashboard.sendUpdates(); });
+        dashboard.sendUpdates();
+    });
 }
 
 // ------------------------------------------------
