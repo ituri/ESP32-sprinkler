@@ -12,7 +12,7 @@ The code is heavily borrowed from [bugfx/ESP32-sprinkler-controller](https://git
 - [2 channel relay board](https://www.az-delivery.de/en/products/2-relais-modul)
 
 ![Closed case](case_closed.jpg)
-![Opened case](case_opened.jpg)
+![Opened case](case_open.jpg)
 
 ## mqtt
 
